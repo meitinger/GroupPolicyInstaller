@@ -1,4 +1,4 @@
-﻿/* Copyright (C) 2010-2011, Manuel Meitinger
+﻿/* Copyright (C) 2010-2014, Manuel Meitinger
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -173,6 +173,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                         {
                             // read as long, but store as ulong (-1 becomes to last task to execute)
                             if (long.TryParse(name, out index))
+                            {
                                 switch (key.GetValueKind(name))
                                 {
                                     case RegistryValueKind.String:
@@ -182,6 +183,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                                         AddTask((ulong)index, Environment.ExpandEnvironmentVariables((string)key.GetValue(name)));
                                         continue;
                                 }
+                            }
                             WriteEvent(Resources.ProgramReadRegFailed, EventLogEntryType.Error, Path.Combine(keyPath, name));
                             return;
                         }
@@ -281,15 +283,19 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         internal static void WriteEvent(string message, EventLogEntryType type)
         {
             if (logFile != null)
+            {
                 try
                 {
                     logFile.WriteLine(string.Format("{0}\t{1}\t{2}", type.ToString().ToUpper().Substring(0, 4), DateTime.Now.ToString("yyyy-dd-MM HH:mm:ss"), message.Replace("\r\n", " | ").Replace('\t', ' ')));
                     logFile.Flush();
                 }
                 catch { }
+            }
             if (log != null)
+            {
                 try { log.WriteEntry(message, type); }
                 catch { }
+            }
         }
 
         /// <summary>

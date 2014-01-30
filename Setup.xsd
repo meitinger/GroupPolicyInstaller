@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
-Copyright (C) 2010-2011, Manuel Meitinger
+Copyright (C) 2010-2014, Manuel Meitinger
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <xs:enumeration value="WindowsInstallerRemoval" />
             <xs:enumeration value="WindowsUpdateFile" />
             <xs:enumeration value="WindowsUpdateRemoval" />
+            <xs:enumeration value="DeviceInstallation" />
+            <xs:enumeration value="DeviceRemoval" />
             <xs:enumeration value="PowerShellScript" />
             <xs:enumeration value="Executable" />
             <xs:enumeration value="ExecutableNoWindow" />

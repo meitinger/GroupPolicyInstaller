@@ -1,4 +1,4 @@
-﻿/* Copyright (C) 2010-2011, Manuel Meitinger
+﻿/* Copyright (C) 2010-2014, Manuel Meitinger
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -273,10 +273,13 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                 string[] parts = messageText.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
                 int progressType;
                 int value;
-                if ((parts.Length & 0x1) != 0 ||
+                if
+                (
+                    (parts.Length & 0x1) != 0 ||
                     parts.Length < 4 ||
                     parts[0] != "1:" || !int.TryParse(parts[1], out progressType) ||
-                    parts[2] != "2:" || !int.TryParse(parts[3], out value))
+                    parts[2] != "2:" || !int.TryParse(parts[3], out value)
+                )
                     return false;
                 bool? flag;
                 if (parts.Length >= 6)
