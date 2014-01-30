@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (C) 2010-2011, Manuel Meitinger
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="Setup">
+    <xs:complexType>
+      <xs:attribute name="Name" type="xs:string" use="required" />
+      <xs:attribute name="Image" type="xs:string" use="required" />
+      <xs:attribute name="Type" use="required">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="WindowsInstallerPackage" />
+            <xs:enumeration value="WindowsInstallerPatch" />
+            <xs:enumeration value="WindowsInstallerRemoval" />
+            <xs:enumeration value="WindowsUpdateFile" />
+            <xs:enumeration value="WindowsUpdateRemoval" />
+            <xs:enumeration value="PowerShellScript" />
+            <xs:enumeration value="Executable" />
+            <xs:enumeration value="ExecutableNoWindow" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="FileName" type="xs:string" use="required" />
+      <xs:attribute name="Parameters" type="xs:string" default="" use="optional" />
+      <xs:attribute name="Reboot" default="IfRequired" use="optional">
+        <xs:simpleType>
+          <xs:restriction base="xs:string">
+            <xs:enumeration value="Never" />
+            <xs:enumeration value="IfRequired" />
+            <xs:enumeration value="Always" />
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+      <xs:attribute name="Exclusive" type="xs:boolean" default="false" use="optional" />
+      <xs:attribute name="LogSuccess" type="xs:boolean" default="true" use="optional" />
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

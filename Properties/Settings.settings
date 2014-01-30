@@ -1,0 +1,18 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="Aufbauwerk.Tools.GroupPolicyInstaller.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="LogPath" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">%SystemRoot%\system32\LogFiles\GroupPolicyInstaller\GPI.log</Value>
+    </Setting>
+    <Setting Name="RegPath" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">HKLM\Software\Aufbauwerk\Tools\GroupPolicyInstaller</Value>
+    </Setting>
+    <Setting Name="IgnoreReboot" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="SuppressReboot" Type="System.Boolean" Scope="Application">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+  </Settings>
+</SettingsFile>
