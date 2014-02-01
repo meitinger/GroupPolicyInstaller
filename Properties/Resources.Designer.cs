@@ -117,8 +117,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller.Properties {
         }
         
         /// <summary>
-        ///   Sucht eine lokalisierte Zeichenfolge, die {0}
-        ///Additional information: {1} ähnelt.
+        ///   Sucht eine lokalisierte Zeichenfolge, die {0} Additional information: {1} ähnelt.
         /// </summary>
         internal static string TaskDetailedResult {
             get {

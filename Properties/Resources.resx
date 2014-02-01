@@ -142,8 +142,7 @@
     <value>Setup type '{0}' is unknown.</value>
   </data>
   <data name="TaskDetailedResult" xml:space="preserve">
-    <value>{0}
-Additional information: {1}</value>
+    <value>{0} Additional information: {1}</value>
   </data>
   <data name="TaskLoadImageFailed" xml:space="preserve">
     <value>Couldn't load image for task {0} from '{1}': {2}</value>
