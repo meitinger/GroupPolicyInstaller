@@ -148,7 +148,7 @@ Additional information: {1}</value>
   <data name="TaskLoadImageFailed" xml:space="preserve">
     <value>Couldn't load image for task {0} from '{1}': {2}</value>
   </data>
-  <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
+  <assembly alias="System.Windows.Forms" name="System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" />
   <data name="ProgramSetupSchema" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Setup.xsd;System.String, mscorlib, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
@@ -166,5 +166,11 @@ Additional information: {1}</value>
   </data>
   <data name="TaskUpdateNotInstalled" xml:space="preserve">
     <value>The update is not installed on the system.</value>
+  </data>
+  <data name="TaskMSIContext" xml:space="preserve">
+    <value>Windows Installer context for task {0}</value>
+  </data>
+  <data name="TaskPSContext" xml:space="preserve">
+    <value>PowerShell context for task {0}</value>
   </data>
 </root>

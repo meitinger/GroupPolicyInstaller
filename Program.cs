@@ -41,9 +41,11 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         private const uint SHTDN_REASON_FLAG_PLANNED = 0x80000000;
 
         [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
-        private static extern bool ExitWindowsEx(
+        private static extern bool ExitWindowsEx
+        (
             [In] uint uFlags,
-            [In] uint dwReason);
+            [In] uint dwReason
+        );
 
         private static readonly SortedDictionary<ulong, Task> tasks = new SortedDictionary<ulong, Task>();
         private static bool isInitialized = false;
@@ -85,7 +87,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                 return;
             }
 
-            // wrap the setup in a task and try adding to the list if haven't encountered an exclusive task yet
+            // wrap the setup in a task and try adding it to the list if we haven't encountered an exclusive task yet
             Task task = new Task(path, setup);
             if (!isExclusive)
             {
@@ -249,7 +251,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         }
 
         /// <summary>
-        /// An ordered list of all tasks.
+        /// Gets an ordered list of all tasks.
         /// </summary>
         internal static IEnumerable<Task> Tasks
         {
@@ -265,11 +267,11 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         }
 
         /// <summary>
-        /// Writes a formated message into the log file and event log.
+        /// Writes a formatted message into the log file and event log.
         /// </summary>
-        /// <param name="message">format message</param>
-        /// <param name="type">event type</param>
-        /// <param name="args">format arguments</param>
+        /// <param name="message">A composite format string.</param>
+        /// <param name="type">One of the <see cref="System.Diagnostics.EventLogEntryType"/> values.</param>
+        /// <param name="args">An object array that contains zero or more objects to format.</param>
         internal static void WriteEvent(string message, EventLogEntryType type, params object[] args)
         {
             WriteEvent(string.Format(message, args), type);
@@ -278,8 +280,8 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         /// <summary>
         /// Writes a message into the log file and event log.
         /// </summary>
-        /// <param name="message">single line message</param>
-        /// <param name="type">event type</param>
+        /// <param name="message">The string to write.</param>
+        /// <param name="type">One of the <see cref="System.Diagnostics.EventLogEntryType"/> values.</param>
         internal static void WriteEvent(string message, EventLogEntryType type)
         {
             if (logFile != null)
@@ -299,7 +301,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         }
 
         /// <summary>
-        /// Set a flag that the program should reboot the system upon exit.
+        /// Sets a flag that the program should reboot the system upon exit.
         /// </summary>
         internal static void ScheduleReboot()
         {
@@ -307,9 +309,11 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         }
 
         /// <summary>
-        /// Set a flag that the program should not yield any more tasks.
-        /// (Used only when a setup task has issued a reboot or any other fatal error occured.)
+        /// Sets a flag that the program should not yield any more tasks.
         /// </summary>
+        /// <remarks>
+        /// Used only when a setup task has issued a reboot or any other fatal error occured.
+        /// </remarks>
         internal static void Stop()
         {
             doStop = true;

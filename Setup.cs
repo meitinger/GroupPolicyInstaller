@@ -162,12 +162,6 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller {
         WindowsUpdateRemoval,
         
         /// <remarks/>
-        DeviceInstallation,
-        
-        /// <remarks/>
-        DeviceRemoval,
-        
-        /// <remarks/>
         PowerShellScript,
         
         /// <remarks/>
@@ -175,6 +169,12 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller {
         
         /// <remarks/>
         ExecutableNoWindow,
+        
+        /// <remarks/>
+        DeviceDriverFile,
+        
+        /// <remarks/>
+        DeviceDriverFileInteractive,
     }
     
     /// <remarks/>

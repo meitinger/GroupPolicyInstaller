@@ -33,10 +33,13 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
     /// <summary>
     /// Callback for task progress changes.
     /// </summary>
-    /// <param name="action">short description of the current action</param>
-    /// <param name="progress">the current progress (between 0 and 100) or -1 if it is unknown</param>
+    /// <param name="action">Short description of the current action.</param>
+    /// <param name="progress">The current progress (between 0 and 100) or -1 if it is unknown.</param>
     public delegate void TaskProgressChanged(string action, int progress);
 
+    /// <summary>
+    /// Represents a runnable task.
+    /// </summary>
     public class Task
     {
         private readonly Setup setup;
@@ -44,7 +47,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         private readonly string directory;
         private readonly Image image;
 
-        #region Win32/MSI/WU/PS
+        #region Win32/MSI/WU/PS/SetupDi
 
         private enum INSTALLUILEVEL
         {
@@ -129,48 +132,109 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
             DEFAULT = 5,  // use default, local or source
         }
 
+        [Flags]
+        private enum INSTALLFLAG
+        {
+            FORCE = 0x00000001,  // Force the installation of the specified driver
+            READONLY = 0x00000002,  // Do a read-only install (no file copy)
+            NONINTERACTIVE = 0x00000004,  // No UI shown at all. API will fail if any UI must be shown.
+        }
+
+        private enum SPOST
+        {
+            NONE = 0,
+            PATH = 1,
+            URL = 2,
+        }
+
+        [Flags]
+        private enum SP_COPY
+        {
+            DELETESOURCE = 0x0000001,   // delete source file on successful copy
+            REPLACEONLY = 0x0000002,   // copy only if target file already present
+            NOOVERWRITE = 0x0000008,   // copy only if target doesn't exist
+            OEMINF_CATALOG_ONLY = 0x0040000,   // (SetupCopyOEMInf only) don't copy INF--just catalog
+        }
+
         [DllImport("shell32.dll", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern IntPtr CommandLineToArgvW(
+        private static extern IntPtr CommandLineToArgvW
+        (
             [In] string lpCmdLine,
-            [Out] out int pNumArgs);
+            [Out] out int pNumArgs
+        );
 
         [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
         static extern IntPtr LocalFree(IntPtr hMem);
 
         [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Auto, SetLastError = false)]
-        private delegate DialogResult INSTALLUI_HANDLER(
+        private delegate DialogResult INSTALLUI_HANDLER
+        (
             [In] IntPtr pvContext,
             [In] INSTALLMESSAGE iMessageType,
-            [In, Optional] string szMessage);
+            [In, Optional] string szMessage
+        );
 
         [DllImport("msi.dll", CharSet = CharSet.Auto, SetLastError = false)]
-        private static extern INSTALLUI_HANDLER MsiSetExternalUI(
+        private static extern INSTALLUI_HANDLER MsiSetExternalUI
+        (
             [In] INSTALLUI_HANDLER puiHandler,
             [In] INSTALLOGMODE dwMessageFilter,
-            [In] IntPtr pvContext);
+            [In] IntPtr pvContext
+        );
 
         [DllImport("msi.dll", CharSet = CharSet.Auto, SetLastError = false)]
-        private static extern INSTALLUILEVEL MsiSetInternalUI(
+        private static extern INSTALLUILEVEL MsiSetInternalUI
+        (
             [In] INSTALLUILEVEL dwUILevel,
-            [In, Out] ref IntPtr phWnd);
+            [In, Out] ref IntPtr phWnd
+        );
 
         [DllImport("msi.dll", CharSet = CharSet.Auto, SetLastError = false)]
-        private static extern int MsiApplyMultiplePatches(
+        private static extern int MsiApplyMultiplePatches
+        (
             [In] string szPatchPackages,
             [In, Optional] string szProductCode,
-            [In, Optional] string szPropertiesList);
+            [In, Optional] string szPropertiesList
+        );
 
         [DllImport("msi.dll", CharSet = CharSet.Auto, SetLastError = false)]
-        private static extern int MsiConfigureProductEx(
+        private static extern int MsiConfigureProductEx
+        (
             [In] string szProduct,
             [In] INSTALLLEVEL iInstallLevel,
             [In] INSTALLSTATE eInstallState,
-            [In] string szCommandLine);
+            [In] string szCommandLine
+        );
 
         [DllImport("msi.dll", CharSet = CharSet.Auto, SetLastError = false)]
-        private static extern int MsiInstallProduct(
+        private static extern int MsiInstallProduct
+        (
             [In] string szPackagePath,
-            [In] string szCommandLine);
+            [In] string szCommandLine
+        );
+
+        [DllImport("newdev.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern bool UpdateDriverForPlugAndPlayDevices
+        (
+            [In, Optional] IntPtr hwndParent,
+            [In] string HardwareId,
+            [In] string FullInfPath,
+            [In] INSTALLFLAG InstallFlags,
+            [Out, Optional] out bool bRebootRequired
+        );
+
+        [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        private static extern bool SetupCopyOEMInf
+        (
+            [In] string SourceInfFileName,
+            [In] string OEMSourceMediaLocation,
+            [In] SPOST OEMSourceMediaType,
+            [In] SP_COPY CopyStyle,
+            [In, Optional] IntPtr DestinationInfFileName,
+            [In] int DestinationInfFileNameSize,
+            [In, Optional] IntPtr RequiredSize,
+            [In, Optional] IntPtr DestinationInfFileNameComponent
+        );
 
         private static void ParseWin32ExitCode(int exitCode, out bool isSuccess, out bool rebootRequired, out string additionalMessage)
         {
@@ -222,12 +286,17 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                 Dispose(false);
             }
 
+            void IDisposable.Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
+
             public INSTALLUI_HANDLER Handler
             {
                 get
                 {
-                    if (isDisposed)
-                        throw new ObjectDisposedException(ToString());
+                    CheckDisposed();
                     return handler;
                 }
             }
@@ -331,13 +400,13 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                 return true;
             }
 
-            void IDisposable.Dispose()
+            protected void CheckDisposed()
             {
-                Dispose(true);
-                GC.SuppressFinalize(this);
+                if (isDisposed)
+                    throw new ObjectDisposedException(string.Format(Resources.TaskMSIContext, task));
             }
 
-            private void Dispose(bool isDisposing)
+            protected void Dispose(bool isDisposing)
             {
                 if (!isDisposed)
                     isDisposed = true;
@@ -362,6 +431,12 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
             ~PSContext()
             {
                 Dispose(false);
+            }
+
+            void IDisposable.Dispose()
+            {
+                Dispose(true);
+                GC.SuppressFinalize(this);
             }
 
             public string Action
@@ -403,28 +478,27 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                 }
             }
 
-            public void Information(string message)
+            private void Log(EventLogEntryType type, string message)
             {
                 if (message == null)
                     throw new ArgumentNullException("message");
                 CheckDisposed();
-                Program.WriteEvent(Resources.TaskMessage, EventLogEntryType.Information, task, message);
+                Program.WriteEvent(Resources.TaskMessage, type, task, message);
+            }
+
+            public void Information(string message)
+            {
+                Log(EventLogEntryType.Information, message);
             }
 
             public void Warning(string message)
             {
-                if (message == null)
-                    throw new ArgumentNullException("message");
-                CheckDisposed();
-                Program.WriteEvent(Resources.TaskMessage, EventLogEntryType.Warning, task, message);
+                Log(EventLogEntryType.Warning, message);
             }
 
             public void Error(string message)
             {
-                if (message == null)
-                    throw new ArgumentNullException("message");
-                CheckDisposed();
-                Program.WriteEvent(Resources.TaskMessage, EventLogEntryType.Error, task, message);
+                Log(EventLogEntryType.Error, message);
             }
 
             public void RequestReboot()
@@ -439,12 +513,6 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                 Program.Stop();
             }
 
-            void IDisposable.Dispose()
-            {
-                Dispose(true);
-                GC.SuppressFinalize(this);
-            }
-
             internal bool RequiresReboot
             {
                 get
@@ -454,13 +522,13 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                 }
             }
 
-            private void CheckDisposed()
+            protected void CheckDisposed()
             {
                 if (isDisposed)
-                    throw new ObjectDisposedException(ToString());
+                    throw new ObjectDisposedException(string.Format(Resources.TaskPSContext, task));
             }
 
-            private void Dispose(bool isDisposing)
+            protected void Dispose(bool isDisposing)
             {
                 if (!isDisposed)
                     isDisposed = true;
@@ -472,7 +540,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
             private readonly Guid id = Guid.NewGuid();
             private readonly CultureInfo culture = Thread.CurrentThread.CurrentCulture;
             private readonly CultureInfo uiCulture = Thread.CurrentThread.CurrentUICulture;
-            private readonly AssemblyName assembly = new AssemblyName(Assembly.GetExecutingAssembly().FullName);
+            private readonly AssemblyName assembly = Assembly.GetExecutingAssembly().GetName();
             private int exitCode = 0;
 
             public int ExitCode { get { return exitCode; } }
@@ -494,8 +562,8 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         /// <summary>
         /// Creates a new task.
         /// </summary>
-        /// <param name="path">the path from which the setup was loaded</param>
-        /// <param name="setup">the underlying setup object</param>
+        /// <param name="path">The path from which the setup was loaded.</param>
+        /// <param name="setup">The underlying setup object.</param>
         internal Task(string path, Setup setup)
         {
             // set the member variables and load the setup image
@@ -515,12 +583,12 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         }
 
         /// <summary>
-        /// Returns the name of the task.
+        /// Gets the name of the task.
         /// </summary>
         public string Name { get { return name; } }
 
         /// <summary>
-        /// Returns the task image.
+        /// Gets the task image.
         /// </summary>
         public Image Image { get { return image; } }
 
@@ -530,9 +598,9 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         public bool IsExclusive { get { return setup.Exclusive; } }
 
         /// <summary>
-        /// Run a task.
+        /// Executes the task.
         /// </summary>
-        /// <param name="progressChanged">callback for progress notifications (if available)</param>
+        /// <param name="progressChanged">Callback for progress notifications.</param>
         public void Run(TaskProgressChanged progressChanged)
         {
             bool isSuccess;
@@ -696,6 +764,61 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                                 process.WaitForExit();
                                 ParseWin32ExitCode(process.ExitCode, out isSuccess, out rebootRequired, out additionalMessage);
                             }
+                        }
+                        break;
+
+                    case SetupType.DeviceDriverFile:
+                    case SetupType.DeviceDriverFileInteractive:
+                        {
+                            // copy the driver
+                            string infFile = Environment.ExpandEnvironmentVariables(setup.FileName);
+                            if (SetupCopyOEMInf(infFile, null, SPOST.NONE, 0, IntPtr.Zero, 0, IntPtr.Zero, IntPtr.Zero))
+                            {
+                                // quit if no devices should be updated
+                                if (string.IsNullOrEmpty(setup.Parameters))
+                                {
+                                    isSuccess = true;
+                                    rebootRequired = false;
+                                    additionalMessage = null;
+                                    break;
+                                }
+
+                                // calculate the install flag
+                                INSTALLFLAG flags = INSTALLFLAG.FORCE;
+                                if (setup.Type != SetupType.DeviceDriverFileInteractive)
+                                    flags |= INSTALLFLAG.NONINTERACTIVE;
+
+                                // update all matching devices
+                                rebootRequired = false;
+                                string[] hardwareIds = Environment.ExpandEnvironmentVariables(setup.Parameters).Split(Path.PathSeparator);
+                                int i;
+                                for (i = 0; i < hardwareIds.Length; i++)
+                                {
+                                    string hardwareId = hardwareIds[i].Trim();
+                                    if (hardwareId.Length == 0)
+                                        continue;
+                                    bool rebootFlag;
+                                    if (!UpdateDriverForPlugAndPlayDevices(IntPtr.Zero, hardwareId, infFile, flags, out rebootFlag))
+                                        break;
+                                    if (rebootFlag)
+                                        rebootRequired = true;
+                                }
+
+                                // handle the result
+                                if (i == hardwareIds.Length)
+                                {
+                                    isSuccess = true;
+                                    additionalMessage = null;
+                                    break;
+                                }
+                            }
+                            else
+                                rebootRequired = false;
+
+                            // an error occured
+                            int lastError = Marshal.GetLastWin32Error();
+                            isSuccess = false;
+                            additionalMessage = lastError == 0 ? null : new Win32Exception(lastError).Message + ".";
                         }
                         break;
 
