@@ -22,4 +22,4 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCompany("Aufbauwerk der Jugend")]
 [assembly: AssemblyCopyright("Copyright © 2010-2011 by Aufbauwerk der Jugend")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.0.1.7")]
+[assembly: AssemblyVersion("1.0.1.8")]

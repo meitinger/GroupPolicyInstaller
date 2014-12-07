@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -288,7 +289,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
             {
                 try
                 {
-                    logFile.WriteLine(string.Format("{0}\t{1}\t{2}", type.ToString().ToUpper().Substring(0, 4), DateTime.Now.ToString("yyyy-dd-MM HH:mm:ss"), message.Replace("\r\n", " | ").Replace('\t', ' ')));
+                    logFile.WriteLine(string.Format("{0}\t{1}\t{2}", type.ToString().ToUpper().Substring(0, 4), DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture), message.Replace("\r\n", " | ").Replace('\t', ' ')));
                     logFile.Flush();
                 }
                 catch { }
