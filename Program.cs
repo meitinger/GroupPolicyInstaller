@@ -49,60 +49,14 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         );
 
         private static readonly SortedDictionary<ulong, Task> tasks = new SortedDictionary<ulong, Task>();
-        private static bool isInitialized = false;
-        private static XmlSerializer setupSerializer;
-        private static XmlReaderSettings readerSettings;
         private static EventLog log = null;
         private static StreamWriter logFile = null;
-        private static bool isExclusive = false;
+        private static RegistryKey rootKey = null;
+        private static string subKeyName = null;
         private static bool doReboot = false;
         private static bool doStop = false;
         private const string eventLogName = "Application";
         private const string eventSource = "Group Policy Installer";
-
-        private static void AddTask(ulong index, string path)
-        {
-            // initialize the XML serializer and schema validator if not done yet
-            if (!isInitialized)
-            {
-                setupSerializer = new XmlSerializer(typeof(Setup));
-                readerSettings = new XmlReaderSettings();
-                using (StringReader stringReader = new StringReader(Resources.ProgramSetupSchema))
-                using (XmlReader xmlReader = XmlReader.Create(stringReader))
-                    readerSettings.Schemas.Add(null, xmlReader);
-                readerSettings.ValidationType = ValidationType.Schema;
-                isInitialized = true;
-            }
-
-            // deserialize the setup object from file
-            Setup setup;
-            try
-            {
-                path = Path.GetFullPath(path);
-                using (XmlReader reader = XmlReader.Create(path, readerSettings))
-                    setup = (Setup)setupSerializer.Deserialize(reader);
-            }
-            catch (Exception e)
-            {
-                WriteEvent(Resources.ProgramLoadSetupFailed, EventLogEntryType.Error, index, path, e.Message);
-                return;
-            }
-
-            // wrap the setup in a task and try adding it to the list if we haven't encountered an exclusive task yet
-            Task task = new Task(path, setup);
-            if (!isExclusive)
-            {
-                // if this is an exclusive task...
-                if (task.IsExclusive)
-                {
-                    // ...stop further tasks from being added and add it iff the task list is empty
-                    isExclusive = true;
-                    if (tasks.Count > 0)
-                        return;
-                }
-                tasks.Add(index, task);
-            }
-        }
 
         [STAThread]
         private static void Main(string[] args)
@@ -143,78 +97,124 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                 {
                     // open the root key of the specified registry path
                     string keyPath = Environment.ExpandEnvironmentVariables(Settings.Default.RegPath);
-                    RegistryKey key;
                     if (keyPath.StartsWith(@"HKLM\", StringComparison.OrdinalIgnoreCase))
-                        key = Registry.LocalMachine;
+                    {
+                        rootKey = Registry.LocalMachine;
+                        subKeyName = keyPath.Substring(5);
+                    }
                     else if (keyPath.StartsWith(@"HKCU\", StringComparison.OrdinalIgnoreCase))
-                        key = Registry.CurrentUser;
+                    {
+                        rootKey = Registry.CurrentUser;
+                        subKeyName = keyPath.Substring(5);
+                    }
                     else if (keyPath.StartsWith(@"HKCR\", StringComparison.OrdinalIgnoreCase))
-                        key = Registry.ClassesRoot;
+                    {
+                        rootKey = Registry.ClassesRoot;
+                        subKeyName = keyPath.Substring(5);
+                    }
                     else if (keyPath.StartsWith(@"HKU\", StringComparison.OrdinalIgnoreCase))
-                        key = Registry.Users;
+                    {
+                        rootKey = Registry.Users;
+                        subKeyName = keyPath.Substring(4);
+                    }
                     else if (keyPath.StartsWith(@"HKCC\", StringComparison.OrdinalIgnoreCase))
-                        key = Registry.CurrentConfig;
+                    {
+                        rootKey = Registry.CurrentConfig;
+                        subKeyName = keyPath.Substring(5);
+                    }
                     else
                     {
-                        WriteEvent(Resources.ProgramReadRegFailed, EventLogEntryType.Error, keyPath);
+                        WriteEvent(Resources.ProgramRegPathRootInvalid, EventLogEntryType.Error, keyPath);
                         return;
                     }
 
                     // open the subkey
-                    using (key = key.OpenSubKey(keyPath.Substring(keyPath.IndexOf('\\') + 1)))
+                    using (RegistryKey registryKey = rootKey.OpenSubKey(subKeyName))
                     {
-                        if (key == null)
+                        if (registryKey == null)
                         {
                             // it is worth a warning if the key doesn't exists (?)
-                            WriteEvent(Resources.ProgramReadRegFailed, EventLogEntryType.Warning, keyPath);
+                            WriteEvent(Resources.ProgramRegPathMissing, EventLogEntryType.Warning, rootKey.Name, subKeyName);
                             return;
                         }
+
+                        // initialize the XML serializer and schema validator
+                        XmlSerializer setupSerializer = new XmlSerializer(typeof(Setup));
+                        XmlReaderSettings readerSettings = new XmlReaderSettings();
+                        using (StringReader stringReader = new StringReader(Resources.ProgramSetupSchema))
+                        using (XmlReader xmlReader = XmlReader.Create(stringReader))
+                            readerSettings.Schemas.Add(null, xmlReader);
+                        readerSettings.ValidationType = ValidationType.Schema;
 
                         // read all values
-                        long index;
-                        foreach (string name in key.GetValueNames())
+                        foreach (string name in registryKey.GetValueNames())
                         {
-                            // read as long, but store as ulong (-1 becomes to last task to execute)
-                            if (long.TryParse(name, out index))
+                            // read the name as integer (-1 becomes the last task to execute)
+                            long index;
+                            if (!long.TryParse(name, NumberStyles.Integer, CultureInfo.InvariantCulture, out index))
                             {
-                                switch (key.GetValueKind(name))
-                                {
-                                    case RegistryValueKind.String:
-                                        AddTask((ulong)index, (string)key.GetValue(name));
-                                        continue;
-                                    case RegistryValueKind.ExpandString:
-                                        AddTask((ulong)index, Environment.ExpandEnvironmentVariables((string)key.GetValue(name)));
-                                        continue;
-                                }
+                                WriteEvent(Resources.ProgramRegValueNameInvalid, EventLogEntryType.Error, registryKey.Name, name);
+                                continue;
                             }
-                            WriteEvent(Resources.ProgramReadRegFailed, EventLogEntryType.Error, Path.Combine(keyPath, name));
-                            return;
+
+                            // read the path
+                            string path;
+                            RegistryValueKind kind = registryKey.GetValueKind(name);
+                            switch (kind)
+                            {
+                                case RegistryValueKind.String:
+                                    path = (string)registryKey.GetValue(name);
+                                    break;
+                                case RegistryValueKind.ExpandString:
+                                    path = (string)Environment.ExpandEnvironmentVariables((string)registryKey.GetValue(name));
+                                    break;
+                                default:
+                                    WriteEvent(Resources.ProgramRegValueTypeInvalid, EventLogEntryType.Error, registryKey.Name, name, kind);
+                                    continue;
+                            }
+
+                            // deserialize the setup object from file
+                            Setup setup;
+                            try
+                            {
+                                path = Path.GetFullPath(path);
+                                using (XmlReader reader = XmlReader.Create(path, readerSettings))
+                                    setup = (Setup)setupSerializer.Deserialize(reader);
+                            }
+                            catch (Exception e)
+                            {
+                                WriteEvent(Resources.ProgramLoadSetupFailed, EventLogEntryType.Error, index, path, e.Message);
+                                continue;
+                            }
+
+                            // wrap the setup in a task and add it to the list
+                            tasks.Add((ulong)index, new Task(name, path, setup));
                         }
+                    }
 
-                        // if no tasks could be loaded, return
-                        if (tasks.Count == 0)
-                            return;
+                    // if no tasks could be loaded, return
+                    if (tasks.Count == 0)
+                        return;
 
-                        // run the application and perform a reboot afterwards if necessary
-                        RuntimeHelpers.PrepareConstrainedRegions();
-                        try { Application.Run(new MainForm()); }
-                        finally
+                    // run the application and perform a reboot afterwards if necessary
+                    RuntimeHelpers.PrepareConstrainedRegions();
+                    try { Application.Run(new MainForm()); }
+                    finally
+                    {
+                        if (doReboot && !Settings.Default.SuppressReboot)
                         {
-                            if (doReboot && !Settings.Default.SuppressReboot)
+                            // aquire the SE_SHUTDOWN_NAME privilege
+                            Type privilegeType = Type.GetType("System.Security.AccessControl.Privilege");
+                            object privilege = privilegeType.GetConstructor(new Type[] { typeof(string) }).Invoke(new object[] { privilegeType.GetField("Shutdown").GetValue(null) });
+                            RuntimeHelpers.PrepareConstrainedRegions();
+                            try
                             {
-                                // aquire the SE_SHUTDOWN_NAME privilege
-                                Type privilegeType = Type.GetType("System.Security.AccessControl.Privilege");
-                                object privilege = privilegeType.GetConstructor(new Type[] { typeof(string) }).Invoke(new object[] { privilegeType.GetField("Shutdown").GetValue(null) });
-                                RuntimeHelpers.PrepareConstrainedRegions();
-                                try
-                                {
-                                    // reboot using user32 API (g_fReadyForShutdown is false)
-                                    privilegeType.GetMethod("Enable").Invoke(privilege, null);
-                                    if (!ExitWindowsEx(EWX_REBOOT | EWX_FORCE, SHTDN_REASON_FLAG_PLANNED | SHTDN_REASON_MAJOR_APPLICATION | SHTDN_REASON_MINOR_INSTALLATION))
-                                        WriteEvent(Resources.ProgramRebootFailed, EventLogEntryType.Error, new Win32Exception().Message);
-                                }
-                                finally { privilegeType.GetMethod("Revert").Invoke(privilege, null); }
+                                // reboot using user32 API (g_fReadyForShutdown is false)
+                                privilegeType.GetMethod("Enable").Invoke(privilege, null);
+                                if (!ExitWindowsEx(EWX_REBOOT | EWX_FORCE, SHTDN_REASON_FLAG_PLANNED | SHTDN_REASON_MAJOR_APPLICATION | SHTDN_REASON_MINOR_INSTALLATION))
+                                    WriteEvent(Resources.ProgramRebootFailed, EventLogEntryType.Error, new Win32Exception().Message);
                             }
+                            finally { privilegeType.GetMethod("Revert").Invoke(privilege, null); }
                         }
                     }
                 }
@@ -240,7 +240,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
 
         private static void SystemEvents_SessionEnded(object sender, SessionEndedEventArgs e)
         {
-            // stop all we're doing
+            // stop going over new tasks
             doStop = true;
         }
 
@@ -258,6 +258,18 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         {
             get
             {
+                // if there is an exclusive task return it and only it
+                foreach (Task task in tasks.Values)
+                {
+                    if (task.IsExclusive)
+                    {
+                        if (!doStop)
+                            yield return task;
+                        yield break;
+                    }
+                }
+
+                // otherwise return all tasks or stop if asked to
                 foreach (Task task in tasks.Values)
                 {
                     if (doStop)
@@ -265,6 +277,16 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
                     yield return task;
                 }
             }
+        }
+
+        /// <summary>
+        /// Opens the registry key to the task list.
+        /// </summary>
+        /// <param name="writable">If <c>true</c>, the returned <see cref="Microsoft.Win32.RegistryKey"/> allows modifications to the registry.</param>
+        /// <returns>The key or <c>null</c> if the operation failed.</returns>
+        internal static RegistryKey OpenRegistryKey(bool writable)
+        {
+            return rootKey == null || subKeyName == null ? null : rootKey.OpenSubKey(subKeyName, writable);
         }
 
         /// <summary>

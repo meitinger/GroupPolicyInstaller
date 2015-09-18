@@ -19,7 +19,7 @@ using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("Group Policy Installer")]
 [assembly: AssemblyDescription("Facilitates group policy filtering to execute setup tasks.")]
-[assembly: AssemblyCompany("Aufbauwerk der Jugend")]
-[assembly: AssemblyCopyright("Copyright © 2010-2011 by Aufbauwerk der Jugend")]
+[assembly: AssemblyCompany("AufBauWerk - Unternehmen für junge Menschen")]
+[assembly: AssemblyCopyright("Copyright © 2010-2015 by Manuel Meitinger")]
 [assembly: ComVisible(false)]
-[assembly: AssemblyVersion("1.0.1.8")]
+[assembly: AssemblyVersion("1.0.1.9")]

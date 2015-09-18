@@ -1,4 +1,4 @@
-﻿/* Copyright (C) 2010-2014, Manuel Meitinger
+﻿/* Copyright (C) 2010-2015, Manuel Meitinger
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using Aufbauwerk.Tools.GroupPolicyInstaller.Properties;
+using Microsoft.Win32;
 
 namespace Aufbauwerk.Tools.GroupPolicyInstaller
 {
@@ -42,6 +43,7 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
     /// </summary>
     public class Task
     {
+        private readonly string id;
         private readonly Setup setup;
         private readonly string name;
         private readonly string directory;
@@ -562,11 +564,13 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
         /// <summary>
         /// Creates a new task.
         /// </summary>
+        /// <param name="id">The task's registry ID.</param>
         /// <param name="path">The path from which the setup was loaded.</param>
         /// <param name="setup">The underlying setup object.</param>
-        internal Task(string path, Setup setup)
+        internal Task(string id, string path, Setup setup)
         {
             // set the member variables and load the setup image
+            this.id = id;
             this.setup = setup;
             name = Environment.ExpandEnvironmentVariables(setup.Name);
             directory = Path.GetDirectoryName(path);
@@ -842,6 +846,23 @@ namespace Aufbauwerk.Tools.GroupPolicyInstaller
             EventLogEntryType type;
             if (isSuccess)
             {
+                // remove the task entry if requested
+                if (setup.RemoveOnSuccess)
+                {
+                    try
+                    {
+                        using (RegistryKey key = Program.OpenRegistryKey(true))
+                        {
+                            if (key != null)
+                                key.DeleteValue(id, false);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Program.WriteEvent(Resources.TaskRemoveFailed, EventLogEntryType.Warning, this, e.Message);
+                    }
+                }
+
                 // quit if we shouldn't log success
                 if (!setup.LogSuccess)
                     return;
